@@ -1,9 +1,11 @@
 // Service Worker for 相机海报生成器
-const CACHE_NAME = 'camera-poster-v1';
+const CACHE_NAME = 'camera-poster-v2';
 const urlsToCache = [
   './',
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 // 安装Service Worker

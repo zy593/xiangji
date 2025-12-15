@@ -87,13 +87,22 @@
 - 使用PWABuilder打包APK
 - 分享给其他人
 
-## 打包成APK
+## 📱 安装到手机
 
-想要直接安装APK到Android手机？查看：
-- 📦 **快速打包APK.md** - 最简单的打包方法（推荐）
+想要安装到手机？查看：
+- 📱 **手机安装指南.md** - 完整的安装步骤（推荐先看这个）
+- 📦 **快速打包APK.md** - APK打包方法
 - 📦 **打包APK指南.md** - 详细的打包选项
 
-**最快方法**：上传到GitHub → 启用GitHub Pages → PWABuilder打包（完全免费）
+**最简单方法**（PWA方式，无需APK）：
+1. 访问：`https://zy593.github.io/xiangji/`
+2. Android：Chrome浏览器 → 点击"安装"
+3. iPhone：Safari浏览器 → 分享 → "添加到主屏幕"
+
+**APK方式**（Android专用）：
+1. 使用PWABuilder打包APK
+2. 下载APK到手机
+3. 安装APK文件
 
 ## 注意事项
 

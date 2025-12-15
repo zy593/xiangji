@@ -794,13 +794,21 @@
         // 预览循环
         let previewAnimationId = null;
         function startPreviewLoop() {
+            // 如果已经在运行，先停止
+            if (previewAnimationId) {
+                stopPreviewLoop();
+            }
+            
             function updatePreview() {
                 if (isUsingUploadedImage && uploadedImage) {
                     // 使用上传的图片
                     updatePreviewFromImage();
-                } else if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
-                    // 使用摄像头
+                } else if (video.readyState >= video.HAVE_METADATA && video.videoWidth > 0 && video.videoHeight > 0) {
+                    // 使用摄像头 - 确保视频元数据已加载且尺寸有效
                     updatePreviewFromVideo();
+                } else {
+                    // 视频还没准备好，等待下一帧
+                    // 不绘制任何内容，避免显示错误
                 }
                 
                 previewAnimationId = requestAnimationFrame(updatePreview);
@@ -811,9 +819,20 @@
 
         // 从视频更新预览
         function updatePreviewFromVideo() {
-            // 设置预览canvas尺寸
-            previewCanvas.width = video.videoWidth;
-            previewCanvas.height = video.videoHeight;
+            // 确保视频尺寸有效
+            const videoWidth = video.videoWidth;
+            const videoHeight = video.videoHeight;
+            
+            if (videoWidth <= 0 || videoHeight <= 0) {
+                // 视频尺寸无效，不绘制
+                return;
+            }
+            
+            // 设置预览canvas尺寸（只在尺寸变化时更新，避免频繁重设）
+            if (previewCanvas.width !== videoWidth || previewCanvas.height !== videoHeight) {
+                previewCanvas.width = videoWidth;
+                previewCanvas.height = videoHeight;
+            }
             
             // 绘制视频帧（考虑缩放和镜像）
             previewCtx.save();
@@ -824,12 +843,22 @@
                 previewCtx.translate(-previewCanvas.width, 0);
             }
             
-            const scaledWidth = video.videoWidth * currentZoom;
-            const scaledHeight = video.videoHeight * currentZoom;
-            const offsetX = (video.videoWidth - scaledWidth) / 2;
-            const offsetY = (video.videoHeight - scaledHeight) / 2;
+            const scaledWidth = videoWidth * currentZoom;
+            const scaledHeight = videoHeight * currentZoom;
+            const offsetX = (videoWidth - scaledWidth) / 2;
+            const offsetY = (videoHeight - scaledHeight) / 2;
             
-            previewCtx.drawImage(video, offsetX, offsetY, scaledWidth, scaledHeight);
+            // 先清空canvas，避免残留
+            previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+            
+            // 绘制视频帧
+            try {
+                previewCtx.drawImage(video, offsetX, offsetY, scaledWidth, scaledHeight);
+            } catch (e) {
+                // 如果绘制失败，恢复并返回
+                previewCtx.restore();
+                return;
+            }
             
             // 应用颜色滤镜
             applyPreviewFilter(currentColor);
@@ -977,6 +1006,24 @@
                 video.srcObject = stream;
                 currentFacingMode = targetFacingMode;
                 
+                // 等待视频元数据加载完成（移动端需要）
+                await new Promise((resolve) => {
+                    if (video.readyState >= video.HAVE_METADATA && video.videoWidth > 0) {
+                        resolve();
+                    } else {
+                        const onLoadedMetadata = () => {
+                            video.removeEventListener('loadedmetadata', onLoadedMetadata);
+                            resolve();
+                        };
+                        video.addEventListener('loadedmetadata', onLoadedMetadata);
+                        // 超时保护
+                        setTimeout(() => {
+                            video.removeEventListener('loadedmetadata', onLoadedMetadata);
+                            resolve();
+                        }, 3000);
+                    }
+                });
+                
                 // 更新按钮显示
                 updateSwitchButtonIcon();
             } catch (error) {
@@ -993,6 +1040,24 @@
                     stream = await navigator.mediaDevices.getUserMedia(constraints);
                     video.srcObject = stream;
                     currentFacingMode = fallbackMode;
+                    
+                    // 等待视频元数据加载完成
+                    await new Promise((resolve) => {
+                        if (video.readyState >= video.HAVE_METADATA && video.videoWidth > 0) {
+                            resolve();
+                        } else {
+                            const onLoadedMetadata = () => {
+                                video.removeEventListener('loadedmetadata', onLoadedMetadata);
+                                resolve();
+                            };
+                            video.addEventListener('loadedmetadata', onLoadedMetadata);
+                            setTimeout(() => {
+                                video.removeEventListener('loadedmetadata', onLoadedMetadata);
+                                resolve();
+                            }, 3000);
+                        }
+                    });
+                    
                     updateSwitchButtonIcon();
                 } catch (err) {
                     throw new Error('无法访问摄像头');
@@ -1823,6 +1888,8 @@
                 navigator.serviceWorker.register('./service-worker.js')
                     .then((registration) => {
                         console.log('Service Worker registered:', registration);
+                        // 检查更新
+                        registration.update();
                     })
                     .catch((error) => {
                         console.log('Service Worker registration failed:', error);
