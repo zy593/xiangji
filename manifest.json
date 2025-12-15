@@ -1,0 +1,36 @@
+{
+  "name": "相机海报生成器",
+  "short_name": "相机海报",
+  "description": "专业的相机海报生成器，支持剪影效果和自定义颜色",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#ff4757",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["photo", "graphics", "utilities"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "拍摄",
+      "short_name": "拍摄",
+      "description": "快速启动相机拍摄",
+      "url": "./index.html",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
+

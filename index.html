@@ -1,0 +1,1842 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="相机海报">
+    <meta name="theme-color" content="#ff4757">
+    <meta name="description" content="专业的相机海报生成器，支持剪影效果和自定义颜色">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- iOS Icons -->
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <title>相机海报生成器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            height: 100dvh;
+            position: fixed;
+            width: 100%;
+        }
+
+        .app-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* 相机预览区域 */
+        .camera-section {
+            flex: 1;
+            position: relative;
+            background: #000;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: pan-x pan-y pinch-zoom;
+        }
+
+        /* 摄像头切换按钮 */
+        .camera-switch-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            transition: all 0.3s ease;
+            touch-action: manipulation;
+        }
+
+        .camera-switch-btn:active {
+            transform: scale(0.9);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .camera-switch-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* 方向锁定按钮 */
+        .orientation-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            transition: all 0.3s ease;
+            touch-action: manipulation;
+        }
+
+        .orientation-btn:active {
+            transform: scale(0.9);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .orientation-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .orientation-btn.locked {
+            background: rgba(255, 107, 107, 0.3);
+            border-color: rgba(255, 107, 107, 0.5);
+        }
+
+        /* 横屏模式 */
+        .camera-section.landscape {
+            flex-direction: row;
+        }
+
+        .camera-section.landscape #camera-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* 缩放控制 */
+        .zoom-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 25px;
+            z-index: 20;
+        }
+
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        .zoom-btn:active {
+            transform: scale(0.9);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .zoom-slider {
+            width: 150px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .zoom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .zoom-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .zoom-value {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            min-width: 35px;
+            text-align: center;
+        }
+
+        #camera-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.1s ease-out;
+            transform-origin: center center;
+            opacity: 0;
+            position: absolute;
+            pointer-events: none;
+        }
+
+        #photo-canvas {
+            display: none;
+        }
+
+        /* 预览效果canvas */
+        #preview-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 5;
+            pointer-events: none;
+            transition: transform 0.1s ease-out;
+            transform-origin: center center;
+        }
+
+        /* 正方形拍摄框 */
+        .square-frame {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 80%;
+            max-width: min(80vw, 80vh);
+            max-height: min(80vw, 80vh);
+            border: 3px dashed rgba(255, 255, 255, 0.8);
+            pointer-events: none;
+            z-index: 15;
+            display: none;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+        }
+
+        .square-frame.active {
+            display: block;
+        }
+
+
+        /* 控制面板 */
+        .control-panel {
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(20px);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-height: 50vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 颜色选择器 */
+        .color-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .color-selector h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+
+        .color-options {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .color-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .color-btn.active {
+            border-color: #fff;
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        }
+
+        .color-btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .color-btn:active::after {
+            opacity: 1;
+        }
+
+        .secondary-btn.active {
+            background: rgba(255, 107, 107, 0.3);
+            border-color: rgba(255, 107, 107, 0.5);
+        }
+
+        /* 色环选择器 */
+        .color-wheel-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .color-wheel-wrapper {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 0 auto;
+        }
+
+        #color-wheel {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            cursor: crosshair;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .color-picker-indicator {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            pointer-events: none;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+
+        .selected-color-display {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            margin: 0 auto;
+        }
+
+        .color-picker-toggle {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+
+        .color-picker-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .color-picker-toggle:active {
+            transform: scale(0.95);
+        }
+
+
+        /* 操作按钮 */
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .primary-btn, .secondary-btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            touch-action: manipulation;
+        }
+
+        .primary-btn {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .primary-btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+        }
+
+        .secondary-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .secondary-btn:active {
+            transform: scale(0.95);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* 拍摄结果展示 */
+        .result-section {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .result-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #result-image {
+            width: 100%;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .result-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 101;
+        }
+
+        .result-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.9);
+            color: #000;
+            transition: all 0.3s;
+        }
+
+        .result-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* 加载提示 */
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 20px 30px;
+            border-radius: 12px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        /* 错误提示 */
+        .error-message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 0, 0, 0.9);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 1000;
+            display: none;
+            font-size: 14px;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 480px) {
+            .control-panel {
+                padding: 12px;
+                gap: 12px;
+            }
+
+            .color-btn {
+                width: 45px;
+                height: 45px;
+            }
+
+            .primary-btn, .secondary-btn {
+                font-size: 14px;
+                padding: 12px 16px;
+            }
+        }
+
+        /* 隐藏滚动条但保持滚动功能 */
+        .control-panel::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .control-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .control-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 相机预览区域 -->
+        <div class="camera-section">
+            <video id="camera-preview" autoplay playsinline></video>
+            <canvas id="preview-canvas"></canvas>
+            <canvas id="photo-canvas"></canvas>
+            <button class="camera-switch-btn" id="switch-camera-btn" title="切换摄像头">🔄</button>
+            <button class="orientation-btn" id="orientation-btn" title="锁定方向">🔓</button>
+            <div class="zoom-controls">
+                <button class="zoom-btn" id="zoom-out-btn" title="缩小">−</button>
+                <input type="range" class="zoom-slider" id="zoom-slider" min="0.3" max="3" step="0.1" value="1">
+                <span class="zoom-value" id="zoom-value">1.0x</span>
+                <button class="zoom-btn" id="zoom-in-btn" title="放大">+</button>
+            </div>
+            <div class="square-frame" id="square-frame"></div>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="control-panel">
+            <!-- 颜色选择器 -->
+            <div class="color-selector">
+                <h3>颜色主题</h3>
+                <div class="color-options">
+                    <button class="color-btn active" data-color="red" style="background: linear-gradient(135deg, #ff4757, #ee5a6f);" title="红色"></button>
+                    <button class="color-btn" data-color="blue" style="background: linear-gradient(135deg, #3742fa, #2f3542);" title="蓝色"></button>
+                    <button class="color-btn" data-color="green" style="background: linear-gradient(135deg, #2ed573, #1e90ff);" title="绿色"></button>
+                    <button class="color-btn" data-color="yellow" style="background: linear-gradient(135deg, #ffa502, #ff6348);" title="黄色"></button>
+                    <button class="color-btn" data-color="purple" style="background: linear-gradient(135deg, #a55eea, #8854d0);" title="紫色"></button>
+                    <button class="color-btn" data-color="orange" style="background: linear-gradient(135deg, #ff6b6b, #ffa502);" title="橙色"></button>
+                </div>
+                <button class="color-picker-toggle" id="color-picker-toggle">🎨 自定义颜色</button>
+                <div class="color-wheel-container" id="color-wheel-container" style="display: none;">
+                    <div class="color-wheel-wrapper">
+                        <canvas id="color-wheel"></canvas>
+                        <div class="color-picker-indicator" id="color-indicator"></div>
+                    </div>
+                    <div class="selected-color-display" id="selected-color-display"></div>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="action-buttons">
+                <button id="upload-btn" class="secondary-btn" title="上传图片">📁 上传</button>
+                <button id="square-mode-btn" class="secondary-btn" title="正方形模式">⬜</button>
+                <button id="capture-btn" class="primary-btn">📷 拍摄</button>
+                <button id="reset-btn" class="secondary-btn">🔄 重置</button>
+            </div>
+            <!-- 隐藏的文件输入 -->
+            <input type="file" id="file-input" accept="image/*" style="display: none;">
+        </div>
+
+        <!-- 拍摄结果展示 -->
+        <div class="result-section" id="result-section">
+            <div class="result-container">
+                <img id="result-image" src="" alt="拍摄结果">
+            </div>
+            <div class="result-controls">
+                <button class="result-btn" id="download-btn">💾 下载</button>
+                <button class="result-btn" id="close-result-btn">✕ 关闭</button>
+            </div>
+        </div>
+
+        <!-- 加载提示 -->
+        <div class="loading" id="loading">处理中...</div>
+
+        <!-- 错误提示 -->
+        <div class="error-message" id="error-message"></div>
+    </div>
+
+    <script>
+        // 全局变量
+        let stream = null;
+        let currentColor = 'red';
+        let currentFacingMode = 'environment'; // 'environment' 后置, 'user' 前置
+        let customColor = { r: 255, g: 71, b: 87 }; // 自定义颜色
+        let isUsingCustomColor = false;
+        let isSquareMode = false; // 正方形拍摄模式
+        let uploadedImage = null; // 上传的图片
+        let isUsingUploadedImage = false; // 是否使用上传的图片
+        let currentZoom = 1.0;
+        let initialDistance = 0;
+        let lastZoom = 1.0;
+        let orientationLocked = false;
+        let currentOrientation = 'portrait'; // 'portrait' 竖屏, 'landscape' 横屏
+
+        // DOM元素
+        const video = document.getElementById('camera-preview');
+        const previewCanvas = document.getElementById('preview-canvas');
+        const previewCtx = previewCanvas.getContext('2d');
+        const canvas = document.getElementById('photo-canvas');
+        const ctx = canvas.getContext('2d');
+        const colorButtons = document.querySelectorAll('.color-btn');
+        const colorWheel = document.getElementById('color-wheel');
+        const colorWheelCtx = colorWheel.getContext('2d');
+        const colorIndicator = document.getElementById('color-indicator');
+        const selectedColorDisplay = document.getElementById('selected-color-display');
+        const colorPickerToggle = document.getElementById('color-picker-toggle');
+        const colorWheelContainer = document.getElementById('color-wheel-container');
+        const captureBtn = document.getElementById('capture-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const uploadBtn = document.getElementById('upload-btn');
+        const fileInput = document.getElementById('file-input');
+        const squareModeBtn = document.getElementById('square-mode-btn');
+        const squareFrame = document.getElementById('square-frame');
+        const resultSection = document.getElementById('result-section');
+        const resultImage = document.getElementById('result-image');
+        const downloadBtn = document.getElementById('download-btn');
+        const closeResultBtn = document.getElementById('close-result-btn');
+        const switchCameraBtn = document.getElementById('switch-camera-btn');
+        const orientationBtn = document.getElementById('orientation-btn');
+        const zoomSlider = document.getElementById('zoom-slider');
+        const zoomInBtn = document.getElementById('zoom-in-btn');
+        const zoomOutBtn = document.getElementById('zoom-out-btn');
+        const zoomValue = document.getElementById('zoom-value');
+        const cameraSection = document.querySelector('.camera-section');
+        const loading = document.getElementById('loading');
+        const errorMessage = document.getElementById('error-message');
+
+        // 颜色配置 - 纯色背景
+        const colorConfigs = {
+            red: { r: 255, g: 71, b: 87 },
+            blue: { r: 55, g: 66, b: 250 },
+            green: { r: 46, g: 213, b: 115 },
+            yellow: { r: 255, g: 165, b: 2 },
+            purple: { r: 165, g: 94, b: 234 },
+            orange: { r: 255, g: 107, b: 107 }
+        };
+
+        // 初始化
+        async function init() {
+            try {
+                await startCamera();
+                setupEventListeners();
+                resultSection.style.display = 'none';
+                drawColorWheel(); // 绘制色环
+                // 初始化默认颜色显示
+                selectedColorDisplay.style.backgroundColor = `rgb(${customColor.r}, ${customColor.g}, ${customColor.b})`;
+                startPreviewLoop(); // 启动预览循环
+            } catch (error) {
+                showError('无法访问摄像头，请检查权限设置');
+                console.error('初始化错误:', error);
+            }
+        }
+
+        // 绘制色环
+        function drawColorWheel() {
+            const size = 200;
+            const center = size / 2;
+            const radius = size / 2 - 10;
+            
+            colorWheel.width = size;
+            colorWheel.height = size;
+            
+            for (let angle = 0; angle < 360; angle += 0.5) {
+                const rad = (angle * Math.PI) / 180;
+                const distance = radius;
+                
+                for (let r = 0; r <= distance; r += 1) {
+                    const x = center + Math.cos(rad) * r;
+                    const y = center + Math.sin(rad) * r;
+                    
+                    // 计算HSL颜色
+                    const hue = angle;
+                    const saturation = (r / distance) * 100;
+                    const lightness = 50;
+                    
+                    const rgb = hslToRgb(hue / 360, saturation / 100, lightness / 100);
+                    colorWheelCtx.fillStyle = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+                    colorWheelCtx.fillRect(x, y, 1, 1);
+                }
+            }
+        }
+
+        // HSL转RGB
+        function hslToRgb(h, s, l) {
+            let r, g, b;
+            if (s === 0) {
+                r = g = b = l;
+            } else {
+                const hue2rgb = (p, q, t) => {
+                    if (t < 0) t += 1;
+                    if (t > 1) t -= 1;
+                    if (t < 1/6) return p + (q - p) * 6 * t;
+                    if (t < 1/2) return q;
+                    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                    return p;
+                };
+                const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                const p = 2 * l - q;
+                r = hue2rgb(p, q, h + 1/3);
+                g = hue2rgb(p, q, h);
+                b = hue2rgb(p, q, h - 1/3);
+            }
+            return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+        }
+
+        // 获取色环上的颜色
+        function getColorFromWheel(x, y) {
+            const rect = colorWheel.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const dx = x - centerX;
+            const dy = y - centerY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const radius = rect.width / 2 - 10;
+            
+            if (distance > radius) return null;
+            
+            const angle = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
+            const saturation = Math.min(100, (distance / radius) * 100);
+            
+            const rgb = hslToRgb(angle / 360, saturation / 100, 0.5);
+            return { r: rgb[0], g: rgb[1], b: rgb[2] };
+        }
+
+        // 预览循环
+        let previewAnimationId = null;
+        function startPreviewLoop() {
+            function updatePreview() {
+                if (isUsingUploadedImage && uploadedImage) {
+                    // 使用上传的图片
+                    updatePreviewFromImage();
+                } else if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
+                    // 使用摄像头
+                    updatePreviewFromVideo();
+                }
+                
+                previewAnimationId = requestAnimationFrame(updatePreview);
+            }
+            
+            updatePreview();
+        }
+
+        // 从视频更新预览
+        function updatePreviewFromVideo() {
+            // 设置预览canvas尺寸
+            previewCanvas.width = video.videoWidth;
+            previewCanvas.height = video.videoHeight;
+            
+            // 绘制视频帧（考虑缩放和镜像）
+            previewCtx.save();
+            
+            // 如果是前置摄像头，需要镜像
+            if (currentFacingMode === 'user') {
+                previewCtx.scale(-1, 1);
+                previewCtx.translate(-previewCanvas.width, 0);
+            }
+            
+            const scaledWidth = video.videoWidth * currentZoom;
+            const scaledHeight = video.videoHeight * currentZoom;
+            const offsetX = (video.videoWidth - scaledWidth) / 2;
+            const offsetY = (video.videoHeight - scaledHeight) / 2;
+            
+            previewCtx.drawImage(video, offsetX, offsetY, scaledWidth, scaledHeight);
+            
+            // 应用颜色滤镜
+            applyPreviewFilter(currentColor);
+            
+            previewCtx.restore();
+        }
+
+        // 从图片更新预览
+        function updatePreviewFromImage() {
+            if (!uploadedImage) return;
+            
+            // 计算预览尺寸（保持宽高比）
+            const container = cameraSection;
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            const imgAspect = uploadedImage.width / uploadedImage.height;
+            const containerAspect = containerWidth / containerHeight;
+            
+            let displayWidth, displayHeight;
+            if (imgAspect > containerAspect) {
+                displayWidth = containerWidth;
+                displayHeight = containerWidth / imgAspect;
+            } else {
+                displayHeight = containerHeight;
+                displayWidth = containerHeight * imgAspect;
+            }
+            
+            // 设置canvas尺寸为图片原始尺寸
+            previewCanvas.width = uploadedImage.width;
+            previewCanvas.height = uploadedImage.height;
+            
+            // 绘制图片（考虑缩放）
+            previewCtx.save();
+            
+            const scaledWidth = uploadedImage.width * currentZoom;
+            const scaledHeight = uploadedImage.height * currentZoom;
+            const offsetX = (uploadedImage.width - scaledWidth) / 2;
+            const offsetY = (uploadedImage.height - scaledHeight) / 2;
+            
+            previewCtx.drawImage(uploadedImage, offsetX, offsetY, scaledWidth, scaledHeight);
+            
+            // 应用颜色滤镜
+            applyPreviewFilter(currentColor);
+            
+            previewCtx.restore();
+        }
+
+        // 处理图片上传
+        function handleImageUpload(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    uploadedImage = img;
+                    isUsingUploadedImage = true;
+                    // 停止视频预览循环，使用图片预览
+                    stopPreviewLoop();
+                    startPreviewLoop();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 停止预览循环
+        function stopPreviewLoop() {
+            if (previewAnimationId) {
+                cancelAnimationFrame(previewAnimationId);
+                previewAnimationId = null;
+            }
+        }
+
+        // 应用预览滤镜
+        function applyPreviewFilter(color) {
+            let config;
+            if (isUsingCustomColor) {
+                config = customColor;
+            } else {
+                config = colorConfigs[color];
+            }
+            if (!config) return;
+
+            const imageData = previewCtx.getImageData(0, 0, previewCanvas.width, previewCanvas.height);
+            const data = imageData.data;
+
+            // 计算自适应阈值
+            let sum = 0;
+            let count = 0;
+            const grays = [];
+            
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const gray = r * 0.299 + g * 0.587 + b * 0.114;
+                grays.push(gray);
+                sum += gray;
+                count++;
+            }
+            
+            const avgThreshold = sum / count;
+            const threshold = avgThreshold * 0.85;
+            const contrast = 2.0;
+
+            // 应用剪影效果
+            for (let i = 0; i < data.length; i += 4) {
+                let gray = grays[i / 4];
+                gray = ((gray - 128) * contrast) + 128;
+                gray = Math.max(0, Math.min(255, gray));
+
+                if (gray < threshold) {
+                    data[i] = 0;
+                    data[i + 1] = 0;
+                    data[i + 2] = 0;
+                } else {
+                    data[i] = config.r;
+                    data[i + 1] = config.g;
+                    data[i + 2] = config.b;
+                }
+            }
+
+            previewCtx.putImageData(imageData, 0, 0);
+        }
+
+        // 启动摄像头
+        async function startCamera(facingMode = null) {
+            // 停止当前流
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+
+            // 使用传入的facingMode或当前设置
+            const targetFacingMode = facingMode || currentFacingMode;
+
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: targetFacingMode,
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                };
+
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                currentFacingMode = targetFacingMode;
+                
+                // 更新按钮显示
+                updateSwitchButtonIcon();
+            } catch (error) {
+                // 如果请求的摄像头失败，尝试另一个
+                const fallbackMode = targetFacingMode === 'environment' ? 'user' : 'environment';
+                try {
+                    const constraints = {
+                        video: {
+                            facingMode: fallbackMode,
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 }
+                        }
+                    };
+                    stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    video.srcObject = stream;
+                    currentFacingMode = fallbackMode;
+                    updateSwitchButtonIcon();
+                } catch (err) {
+                    throw new Error('无法访问摄像头');
+                }
+            }
+        }
+
+        // 切换摄像头
+        async function switchCamera() {
+            try {
+                showLoading(true);
+                const newFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+                await startCamera(newFacingMode);
+                showLoading(false);
+            } catch (error) {
+                showLoading(false);
+                showError('切换摄像头失败');
+                console.error('切换摄像头错误:', error);
+            }
+        }
+
+        // 更新切换按钮图标
+        function updateSwitchButtonIcon() {
+            if (currentFacingMode === 'environment') {
+                switchCameraBtn.textContent = '🔄';
+                switchCameraBtn.title = '切换到前置摄像头';
+            } else {
+                switchCameraBtn.textContent = '🔄';
+                switchCameraBtn.title = '切换到后置摄像头';
+            }
+        }
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 颜色按钮
+            colorButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    colorButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentColor = btn.dataset.color;
+                    isUsingCustomColor = false;
+                    // 颜色改变时，预览会自动更新（通过requestAnimationFrame）
+                });
+            });
+
+            // 色环选择器切换
+            colorPickerToggle.addEventListener('click', () => {
+                const isVisible = colorWheelContainer.style.display !== 'none';
+                colorWheelContainer.style.display = isVisible ? 'none' : 'flex';
+            });
+
+            // 色环点击事件
+            colorWheel.addEventListener('click', (e) => {
+                const rect = colorWheel.getBoundingClientRect();
+                const x = e.clientX;
+                const y = e.clientY;
+                const color = getColorFromWheel(x, y);
+                
+                if (color) {
+                    customColor = color;
+                    isUsingCustomColor = true;
+                    
+                    // 更新指示器位置
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    const dx = x - centerX;
+                    const dy = y - centerY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const radius = rect.width / 2 - 10;
+                    const finalDistance = Math.min(distance, radius);
+                    const angle = Math.atan2(dy, dx);
+                    
+                    colorIndicator.style.left = (centerX + Math.cos(angle) * finalDistance - rect.left) + 'px';
+                    colorIndicator.style.top = (centerY + Math.sin(angle) * finalDistance - rect.top) + 'px';
+                    
+                    // 更新颜色显示
+                    selectedColorDisplay.style.backgroundColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
+                    
+                    // 取消预设颜色的选中状态
+                    colorButtons.forEach(b => b.classList.remove('active'));
+                }
+            });
+
+            // 色环拖拽事件
+            let isDragging = false;
+            colorWheel.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                const rect = colorWheel.getBoundingClientRect();
+                const x = e.clientX;
+                const y = e.clientY;
+                const color = getColorFromWheel(x, y);
+                if (color) {
+                    customColor = color;
+                    isUsingCustomColor = true;
+                    updateColorFromWheel(x, y, rect);
+                    colorButtons.forEach(b => b.classList.remove('active'));
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    const rect = colorWheel.getBoundingClientRect();
+                    const x = e.clientX;
+                    const y = e.clientY;
+                    const color = getColorFromWheel(x, y);
+                    if (color) {
+                        customColor = color;
+                        updateColorFromWheel(x, y, rect);
+                    }
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            // 触摸事件支持
+            colorWheel.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                isDragging = true;
+                const touch = e.touches[0];
+                const rect = colorWheel.getBoundingClientRect();
+                const x = touch.clientX;
+                const y = touch.clientY;
+                const color = getColorFromWheel(x, y);
+                if (color) {
+                    customColor = color;
+                    isUsingCustomColor = true;
+                    updateColorFromWheel(x, y, rect);
+                    colorButtons.forEach(b => b.classList.remove('active'));
+                }
+            }, { passive: false });
+
+            document.addEventListener('touchmove', (e) => {
+                if (isDragging) {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    const rect = colorWheel.getBoundingClientRect();
+                    const x = touch.clientX;
+                    const y = touch.clientY;
+                    const color = getColorFromWheel(x, y);
+                    if (color) {
+                        customColor = color;
+                        updateColorFromWheel(x, y, rect);
+                    }
+                }
+            }, { passive: false });
+
+            document.addEventListener('touchend', () => {
+                isDragging = false;
+            });
+
+            // 更新色环颜色
+            function updateColorFromWheel(x, y, rect) {
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const dx = x - centerX;
+                const dy = y - centerY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const radius = rect.width / 2 - 10;
+                const finalDistance = Math.min(distance, radius);
+                const angle = Math.atan2(dy, dx);
+                
+                colorIndicator.style.left = (centerX + Math.cos(angle) * finalDistance - rect.left) + 'px';
+                colorIndicator.style.top = (centerY + Math.sin(angle) * finalDistance - rect.top) + 'px';
+                
+                selectedColorDisplay.style.backgroundColor = `rgb(${customColor.r}, ${customColor.g}, ${customColor.b})`;
+            }
+
+            // 上传按钮
+            uploadBtn.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            // 文件选择事件
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    handleImageUpload(file);
+                }
+            });
+
+            // 正方形模式按钮
+            squareModeBtn.addEventListener('click', () => {
+                isSquareMode = !isSquareMode;
+                if (isSquareMode) {
+                    squareModeBtn.classList.add('active');
+                    squareModeBtn.textContent = '⬜';
+                    squareModeBtn.title = '关闭正方形模式';
+                    squareFrame.classList.add('active');
+                } else {
+                    squareModeBtn.classList.remove('active');
+                    squareModeBtn.textContent = '⬜';
+                    squareModeBtn.title = '正方形模式';
+                    squareFrame.classList.remove('active');
+                }
+            });
+
+            // 拍摄按钮
+            captureBtn.addEventListener('click', capturePhoto);
+
+            // 重置按钮
+            resetBtn.addEventListener('click', reset);
+
+            // 下载按钮
+            downloadBtn.addEventListener('click', downloadPoster);
+
+            // 关闭结果
+            closeResultBtn.addEventListener('click', () => {
+                resultSection.style.display = 'none';
+                // 重新启动预览循环（如果使用摄像头）
+                if (!isUsingUploadedImage && stream) {
+                    startPreviewLoop();
+                } else if (isUsingUploadedImage && uploadedImage) {
+                    // 如果使用上传的图片，继续图片预览
+                    startPreviewLoop();
+                }
+            });
+
+            // 切换摄像头
+            switchCameraBtn.addEventListener('click', switchCamera);
+
+            // 缩放控制
+            zoomSlider.addEventListener('input', (e) => {
+                currentZoom = parseFloat(e.target.value);
+                applyZoom(currentZoom);
+                updateZoomValue();
+            });
+
+            zoomInBtn.addEventListener('click', () => {
+                if (currentZoom < 3) {
+                    currentZoom = Math.min(3, currentZoom + 0.1);
+                    zoomSlider.value = currentZoom;
+                    applyZoom(currentZoom);
+                    updateZoomValue();
+                }
+            });
+
+            zoomOutBtn.addEventListener('click', () => {
+                if (currentZoom > 0.3) {
+                    currentZoom = Math.max(0.3, currentZoom - 0.1);
+                    zoomSlider.value = currentZoom;
+                    applyZoom(currentZoom);
+                    updateZoomValue();
+                }
+            });
+
+            // 双指捏合缩放手势
+            let touches = [];
+            cameraSection.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    touches = Array.from(e.touches);
+                    initialDistance = getDistance(touches[0], touches[1]);
+                    lastZoom = currentZoom;
+                }
+            }, { passive: true });
+
+            cameraSection.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2 && touches.length === 2) {
+                    e.preventDefault();
+                    const currentDistance = getDistance(e.touches[0], e.touches[1]);
+                    const scale = currentDistance / initialDistance;
+                    const newZoom = Math.max(0.3, Math.min(3, lastZoom * scale));
+                    currentZoom = newZoom;
+                    zoomSlider.value = currentZoom;
+                    applyZoom(currentZoom);
+                    updateZoomValue();
+                }
+            }, { passive: false });
+
+            cameraSection.addEventListener('touchend', () => {
+                touches = [];
+            }, { passive: true });
+
+            // 方向锁定按钮
+            orientationBtn.addEventListener('click', toggleOrientationLock);
+
+            // 检测设备方向变化
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('orientationchange', handleOrientationChange);
+                handleOrientationChange(); // 初始化方向
+            } else if (window.screen && window.screen.orientation) {
+                window.screen.orientation.addEventListener('change', handleOrientationChange);
+                handleOrientationChange();
+            } else {
+                // 使用resize事件作为后备方案
+                window.addEventListener('resize', handleOrientationChange);
+                handleOrientationChange();
+            }
+        }
+
+        // 切换方向锁定
+        function toggleOrientationLock() {
+            orientationLocked = !orientationLocked;
+            if (orientationLocked) {
+                orientationBtn.textContent = '🔒';
+                orientationBtn.title = '解锁方向';
+                orientationBtn.classList.add('locked');
+            } else {
+                orientationBtn.textContent = '🔓';
+                orientationBtn.title = '锁定方向';
+                orientationBtn.classList.remove('locked');
+                handleOrientationChange(); // 立即应用当前方向
+            }
+        }
+
+        // 处理方向变化
+        function handleOrientationChange() {
+            if (orientationLocked) return;
+
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            const isLandscape = width > height;
+
+            // 使用屏幕方向API（如果可用）
+            let screenOrientation = 'portrait';
+            if (window.screen && window.screen.orientation) {
+                const angle = window.screen.orientation.angle;
+                screenOrientation = (angle === 90 || angle === 270) ? 'landscape' : 'portrait';
+            } else {
+                screenOrientation = isLandscape ? 'landscape' : 'portrait';
+            }
+
+            if (screenOrientation === 'landscape' && currentOrientation !== 'landscape') {
+                currentOrientation = 'landscape';
+                cameraSection.classList.add('landscape');
+                video.style.objectFit = 'contain';
+            } else if (screenOrientation === 'portrait' && currentOrientation !== 'portrait') {
+                currentOrientation = 'portrait';
+                cameraSection.classList.remove('landscape');
+                video.style.objectFit = 'cover';
+            }
+        }
+
+        // 计算两点间距离
+        function getDistance(touch1, touch2) {
+            const dx = touch1.clientX - touch2.clientX;
+            const dy = touch1.clientY - touch2.clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        // 应用缩放
+        function applyZoom(zoom) {
+            // 只有在使用摄像头时才缩放video元素
+            if (!isUsingUploadedImage && video) {
+                video.style.transform = `scale(${zoom})`;
+            }
+            // 预览canvas始终可以缩放
+            if (previewCanvas) {
+                previewCanvas.style.transform = `scale(${zoom})`;
+            }
+        }
+
+        // 更新缩放值显示
+        function updateZoomValue() {
+            zoomValue.textContent = currentZoom.toFixed(1) + 'x';
+        }
+
+
+        // 拍摄照片
+        async function capturePhoto() {
+            // 如果使用上传的图片，直接处理图片
+            if (isUsingUploadedImage && uploadedImage) {
+                processUploadedImage();
+                return;
+            }
+
+            if (!stream) {
+                showError('摄像头未启动');
+                return;
+            }
+
+            try {
+                showLoading(true);
+                
+                // 设置canvas尺寸（根据当前方向）
+                const videoWidth = video.videoWidth;
+                const videoHeight = video.videoHeight;
+                const isVideoLandscape = videoWidth > videoHeight;
+                
+                let canvasWidth, canvasHeight;
+                let needRotate = false;
+                
+                // 根据当前屏幕方向决定canvas尺寸
+                if (currentOrientation === 'landscape') {
+                    // 横屏模式：canvas应该是横向的
+                    if (isVideoLandscape) {
+                        // 视频本身就是横屏，直接使用
+                        canvasWidth = videoWidth;
+                        canvasHeight = videoHeight;
+                        needRotate = false;
+                    } else {
+                        // 视频是竖屏，需要旋转90度变成横屏
+                        canvasWidth = videoHeight;
+                        canvasHeight = videoWidth;
+                        needRotate = true;
+                    }
+                } else {
+                    // 竖屏模式：canvas应该是竖向的
+                    if (isVideoLandscape) {
+                        // 视频是横屏，需要旋转90度变成竖屏
+                        canvasWidth = videoHeight;
+                        canvasHeight = videoWidth;
+                        needRotate = true;
+                    } else {
+                        // 视频本身就是竖屏，直接使用
+                        canvasWidth = videoWidth;
+                        canvasHeight = videoHeight;
+                        needRotate = false;
+                    }
+                }
+                
+                // 计算缩放后的实际尺寸
+                const scaledWidth = videoWidth * currentZoom;
+                const scaledHeight = videoHeight * currentZoom;
+                
+                // 创建临时canvas来处理缩放和旋转
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                
+                // 先绘制到临时canvas（原始尺寸）
+                tempCanvas.width = videoWidth;
+                tempCanvas.height = videoHeight;
+                
+                // 在临时canvas上绘制缩放后的视频
+                const offsetX = (videoWidth - scaledWidth) / 2;
+                const offsetY = (videoHeight - scaledHeight) / 2;
+                tempCtx.drawImage(video, offsetX, offsetY, scaledWidth, scaledHeight);
+                
+                // 应用颜色滤镜到临时canvas
+                const tempImageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                const tempData = tempImageData.data;
+                const config = isUsingCustomColor ? customColor : colorConfigs[currentColor];
+                
+                // 计算阈值并应用剪影效果
+                let sum = 0;
+                const grays = [];
+                for (let i = 0; i < tempData.length; i += 4) {
+                    const gray = tempData[i] * 0.299 + tempData[i + 1] * 0.587 + tempData[i + 2] * 0.114;
+                    grays.push(gray);
+                    sum += gray;
+                }
+                const avgThreshold = sum / (tempData.length / 4);
+                const threshold = avgThreshold * 0.85;
+                const contrast = 2.0;
+                
+                for (let i = 0; i < tempData.length; i += 4) {
+                    let gray = grays[i / 4];
+                    gray = ((gray - 128) * contrast) + 128;
+                    gray = Math.max(0, Math.min(255, gray));
+                    
+                    if (gray < threshold) {
+                        tempData[i] = 0;
+                        tempData[i + 1] = 0;
+                        tempData[i + 2] = 0;
+                    } else {
+                        tempData[i] = config.r;
+                        tempData[i + 1] = config.g;
+                        tempData[i + 2] = config.b;
+                    }
+                }
+                tempCtx.putImageData(tempImageData, 0, 0);
+                
+                // 根据模式和缩放确定最终canvas尺寸
+                let finalWidth, finalHeight;
+                
+                if (isSquareMode) {
+                    const originalSize = Math.min(canvasWidth, canvasHeight);
+                    finalWidth = originalSize * currentZoom;
+                    finalHeight = originalSize * currentZoom;
+                } else {
+                    if (needRotate) {
+                        finalWidth = scaledHeight;
+                        finalHeight = scaledWidth;
+                    } else {
+                        finalWidth = scaledWidth;
+                        finalHeight = scaledHeight;
+                    }
+                }
+                
+                // 设置最终canvas尺寸（完全匹配图像尺寸，无白色背景）
+                canvas.width = finalWidth;
+                canvas.height = finalHeight;
+                
+                // 绘制到最终canvas
+                ctx.save();
+                
+                if (isSquareMode) {
+                    // 正方形模式：从临时canvas裁剪中心正方形
+                    const originalSize = Math.min(canvasWidth, canvasHeight);
+                    const sourceX = (videoWidth - originalSize) / 2;
+                    const sourceY = (videoHeight - originalSize) / 2;
+                    ctx.drawImage(tempCanvas, sourceX, sourceY, originalSize, originalSize, 0, 0, finalWidth, finalHeight);
+                } else {
+                    if (needRotate) {
+                        // 需要旋转：先旋转临时canvas，再绘制
+                        const rotatedCanvas = document.createElement('canvas');
+                        const rotatedCtx = rotatedCanvas.getContext('2d');
+                        rotatedCanvas.width = videoHeight;
+                        rotatedCanvas.height = videoWidth;
+                        
+                        rotatedCtx.translate(rotatedCanvas.width / 2, rotatedCanvas.height / 2);
+                        rotatedCtx.rotate(Math.PI / 2);
+                        rotatedCtx.translate(-tempCanvas.height / 2, -tempCanvas.width / 2);
+                        rotatedCtx.drawImage(tempCanvas, 0, 0);
+                        
+                        // 从旋转后的canvas裁剪缩放后的区域
+                        const cropX = (rotatedCanvas.width - scaledHeight) / 2;
+                        const cropY = (rotatedCanvas.height - scaledWidth) / 2;
+                        ctx.drawImage(rotatedCanvas, cropX, cropY, scaledHeight, scaledWidth, 0, 0, finalWidth, finalHeight);
+                    } else {
+                        // 不需要旋转：直接绘制缩放后的区域
+                        ctx.drawImage(tempCanvas, offsetX, offsetY, scaledWidth, scaledHeight, 0, 0, finalWidth, finalHeight);
+                    }
+                }
+                
+                ctx.restore();
+                
+                // 颜色滤镜已经在临时canvas上应用了，这里不需要再次应用
+
+                // 显示结果
+                resultImage.src = canvas.toDataURL('image/png');
+                resultSection.style.display = 'flex';
+                showLoading(false);
+                
+                // 停止预览循环以节省性能
+                stopPreviewLoop();
+            } catch (error) {
+                showLoading(false);
+                showError('拍摄失败，请重试');
+                console.error('拍摄错误:', error);
+            }
+        }
+
+        // 处理上传的图片
+        function processUploadedImage() {
+            if (!uploadedImage) return;
+
+            try {
+                showLoading(true);
+
+                const imgWidth = uploadedImage.width;
+                const imgHeight = uploadedImage.height;
+                const isImageLandscape = imgWidth > imgHeight;
+
+                let canvasWidth, canvasHeight;
+                let needRotate = false;
+
+                // 根据当前屏幕方向决定canvas尺寸
+                if (currentOrientation === 'landscape') {
+                    if (isImageLandscape) {
+                        canvasWidth = imgWidth;
+                        canvasHeight = imgHeight;
+                        needRotate = false;
+                    } else {
+                        canvasWidth = imgHeight;
+                        canvasHeight = imgWidth;
+                        needRotate = true;
+                    }
+                } else {
+                    if (isImageLandscape) {
+                        canvasWidth = imgHeight;
+                        canvasHeight = imgWidth;
+                        needRotate = true;
+                    } else {
+                        canvasWidth = imgWidth;
+                        canvasHeight = imgHeight;
+                        needRotate = false;
+                    }
+                }
+
+                // 计算缩放后的实际尺寸
+                const scaledWidth = imgWidth * currentZoom;
+                const scaledHeight = imgHeight * currentZoom;
+                
+                // 创建临时canvas来处理缩放和旋转
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                
+                // 先绘制到临时canvas（原始尺寸）
+                tempCanvas.width = imgWidth;
+                tempCanvas.height = imgHeight;
+                
+                // 在临时canvas上绘制缩放后的图片
+                const offsetX = (imgWidth - scaledWidth) / 2;
+                const offsetY = (imgHeight - scaledHeight) / 2;
+                tempCtx.drawImage(uploadedImage, offsetX, offsetY, scaledWidth, scaledHeight);
+                
+                // 应用颜色滤镜到临时canvas
+                const tempImageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                const tempData = tempImageData.data;
+                const config = isUsingCustomColor ? customColor : colorConfigs[currentColor];
+                
+                // 计算阈值并应用剪影效果
+                let sum = 0;
+                const grays = [];
+                for (let i = 0; i < tempData.length; i += 4) {
+                    const gray = tempData[i] * 0.299 + tempData[i + 1] * 0.587 + tempData[i + 2] * 0.114;
+                    grays.push(gray);
+                    sum += gray;
+                }
+                const avgThreshold = sum / (tempData.length / 4);
+                const threshold = avgThreshold * 0.85;
+                const contrast = 2.0;
+                
+                for (let i = 0; i < tempData.length; i += 4) {
+                    let gray = grays[i / 4];
+                    gray = ((gray - 128) * contrast) + 128;
+                    gray = Math.max(0, Math.min(255, gray));
+                    
+                    if (gray < threshold) {
+                        tempData[i] = 0;
+                        tempData[i + 1] = 0;
+                        tempData[i + 2] = 0;
+                    } else {
+                        tempData[i] = config.r;
+                        tempData[i + 1] = config.g;
+                        tempData[i + 2] = config.b;
+                    }
+                }
+                tempCtx.putImageData(tempImageData, 0, 0);
+                
+                // 根据模式和缩放确定最终canvas尺寸
+                let finalWidth, finalHeight;
+                
+                if (isSquareMode) {
+                    const originalSize = Math.min(canvasWidth, canvasHeight);
+                    finalWidth = originalSize * currentZoom;
+                    finalHeight = originalSize * currentZoom;
+                } else {
+                    if (needRotate) {
+                        finalWidth = scaledHeight;
+                        finalHeight = scaledWidth;
+                    } else {
+                        finalWidth = scaledWidth;
+                        finalHeight = scaledHeight;
+                    }
+                }
+                
+                // 设置最终canvas尺寸（完全匹配图像尺寸，无白色背景）
+                canvas.width = finalWidth;
+                canvas.height = finalHeight;
+                
+                // 绘制到最终canvas
+                ctx.save();
+                
+                if (isSquareMode) {
+                    // 正方形模式：从临时canvas裁剪中心正方形
+                    const originalSize = Math.min(canvasWidth, canvasHeight);
+                    const sourceX = (imgWidth - originalSize) / 2;
+                    const sourceY = (imgHeight - originalSize) / 2;
+                    ctx.drawImage(tempCanvas, sourceX, sourceY, originalSize, originalSize, 0, 0, finalWidth, finalHeight);
+                } else {
+                    if (needRotate) {
+                        // 需要旋转：先旋转临时canvas，再绘制
+                        const rotatedCanvas = document.createElement('canvas');
+                        const rotatedCtx = rotatedCanvas.getContext('2d');
+                        rotatedCanvas.width = imgHeight;
+                        rotatedCanvas.height = imgWidth;
+                        
+                        rotatedCtx.translate(rotatedCanvas.width / 2, rotatedCanvas.height / 2);
+                        rotatedCtx.rotate(Math.PI / 2);
+                        rotatedCtx.translate(-tempCanvas.height / 2, -tempCanvas.width / 2);
+                        rotatedCtx.drawImage(tempCanvas, 0, 0);
+                        
+                        // 从旋转后的canvas裁剪缩放后的区域
+                        const cropX = (rotatedCanvas.width - scaledHeight) / 2;
+                        const cropY = (rotatedCanvas.height - scaledWidth) / 2;
+                        ctx.drawImage(rotatedCanvas, cropX, cropY, scaledHeight, scaledWidth, 0, 0, finalWidth, finalHeight);
+                    } else {
+                        // 不需要旋转：直接绘制缩放后的区域
+                        ctx.drawImage(tempCanvas, offsetX, offsetY, scaledWidth, scaledHeight, 0, 0, finalWidth, finalHeight);
+                    }
+                }
+                
+                ctx.restore();
+                
+                // 颜色滤镜已经在临时canvas上应用了，这里不需要再次应用
+
+                // 显示结果
+                resultImage.src = canvas.toDataURL('image/png');
+                resultSection.style.display = 'flex';
+                showLoading(false);
+            } catch (error) {
+                showLoading(false);
+                showError('处理图片失败，请重试');
+                console.error('处理图片错误:', error);
+            }
+        }
+
+        // 应用颜色滤镜 - 实现剪影效果（纯黑剪影 + 纯色背景）
+        function applyColorFilter(color) {
+            let config;
+            if (isUsingCustomColor) {
+                config = customColor;
+            } else {
+                config = colorConfigs[color];
+            }
+            if (!config) return;
+
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+
+            // 计算自适应阈值（使用Otsu方法或简单平均值）
+            let sum = 0;
+            let count = 0;
+            const grays = [];
+            
+            // 先计算所有像素的灰度值
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const gray = r * 0.299 + g * 0.587 + b * 0.114;
+                grays.push(gray);
+                sum += gray;
+                count++;
+            }
+            
+            // 使用平均值作为阈值，或使用中位数
+            const avgThreshold = sum / count;
+            // 稍微调整阈值，使剪影更明显（降低阈值会让更多区域变成黑色）
+            const threshold = avgThreshold * 0.85;
+            
+            // 高对比度参数
+            const contrast = 2.0;
+
+            // 应用剪影效果
+            for (let i = 0; i < data.length; i += 4) {
+                let gray = grays[i / 4];
+
+                // 增强对比度
+                gray = ((gray - 128) * contrast) + 128;
+                gray = Math.max(0, Math.min(255, gray));
+
+                // 阈值化：低于阈值的变成纯黑色，高于阈值的变成主题颜色
+                if (gray < threshold) {
+                    // 纯黑色剪影
+                    data[i] = 0;
+                    data[i + 1] = 0;
+                    data[i + 2] = 0;
+                } else {
+                    // 纯色背景
+                    data[i] = config.r;
+                    data[i + 1] = config.g;
+                    data[i + 2] = config.b;
+                }
+                // alpha通道保持不变
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+
+        // 下载海报
+        function downloadPoster() {
+            const link = document.createElement('a');
+            link.download = `海报_${new Date().getTime()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // 重置
+        function reset() {
+            currentColor = 'red';
+            isUsingCustomColor = false;
+            customColor = { r: 255, g: 71, b: 87 }; // 重置为红色
+            colorButtons.forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.color === 'red') {
+                    btn.classList.add('active');
+                }
+            });
+            // 重置色环显示
+            selectedColorDisplay.style.backgroundColor = `rgb(${customColor.r}, ${customColor.g}, ${customColor.b})`;
+            colorWheelContainer.style.display = 'none';
+            // 重置缩放
+            currentZoom = 1.0;
+            zoomSlider.value = 1.0;
+            applyZoom(1.0);
+            updateZoomValue();
+            // 重置方向锁定
+            if (orientationLocked) {
+                toggleOrientationLock();
+            }
+            // 重置正方形模式
+            isSquareMode = false;
+            squareModeBtn.classList.remove('active');
+            squareFrame.classList.remove('active');
+            // 重置上传的图片
+            isUsingUploadedImage = false;
+            uploadedImage = null;
+            fileInput.value = '';
+            // 如果摄像头在运行，恢复视频预览
+            if (stream) {
+                stopPreviewLoop();
+                startPreviewLoop();
+            }
+        }
+
+        // 显示加载
+        function showLoading(show) {
+            if (show) {
+                loading.classList.add('show');
+            } else {
+                loading.classList.remove('show');
+            }
+        }
+
+        // 显示错误
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+            setTimeout(() => {
+                errorMessage.classList.remove('show');
+            }, 3000);
+        }
+
+        // 页面加载完成后初始化
+        window.addEventListener('load', () => {
+            init();
+            registerServiceWorker();
+        });
+
+        // 注册Service Worker
+        function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then((registration) => {
+                        console.log('Service Worker registered:', registration);
+                    })
+                    .catch((error) => {
+                        console.log('Service Worker registration failed:', error);
+                    });
+            }
+        }
+
+        // 页面卸载时停止摄像头和预览
+        window.addEventListener('beforeunload', () => {
+            stopPreviewLoop();
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>
