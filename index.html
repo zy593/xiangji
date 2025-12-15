@@ -707,6 +707,18 @@
         // 初始化
         async function init() {
             try {
+                // 检查浏览器支持
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    showError('您的浏览器不支持摄像头功能，请使用Chrome、Firefox或Safari浏览器');
+                    console.error('浏览器不支持getUserMedia');
+                    return;
+                }
+                
+                // 检查HTTPS（某些浏览器要求）
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    console.warn('非HTTPS环境，某些浏览器可能无法访问摄像头');
+                }
+                
                 await startCamera();
                 setupEventListeners();
                 resultSection.style.display = 'none';
@@ -715,7 +727,19 @@
                 selectedColorDisplay.style.backgroundColor = `rgb(${customColor.r}, ${customColor.g}, ${customColor.b})`;
                 startPreviewLoop(); // 启动预览循环
             } catch (error) {
-                showError('无法访问摄像头，请检查权限设置');
+                let errorMsg = '无法访问摄像头';
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                    errorMsg = '摄像头权限被拒绝，请在浏览器设置中允许摄像头权限';
+                } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                    errorMsg = '未找到摄像头设备';
+                } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+                    errorMsg = '摄像头被其他应用占用，请关闭其他使用摄像头的应用';
+                } else if (error.name === 'OverconstrainedError' || error.name === 'ConstraintNotSatisfiedError') {
+                    errorMsg = '摄像头不支持请求的设置';
+                } else {
+                    errorMsg = `无法访问摄像头: ${error.message || error.name}`;
+                }
+                showError(errorMsg);
                 console.error('初始化错误:', error);
             }
         }
